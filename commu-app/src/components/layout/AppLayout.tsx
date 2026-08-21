@@ -6,7 +6,6 @@ import {
   Bell,
   User,
   LogOut,
-  Sparkles,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/contexts/AuthContext'
@@ -16,6 +15,7 @@ import { useEffect, useState } from 'react'
 import { subscribeToNotifications, getUnreadCount } from '@/services/notifications.service'
 import type { AppNotification } from '@/types'
 import { CallManager } from '@/components/call/CallManager'
+import logoImg from '@/assets/logo.png'
 
 const navItems = [
   { to: '/', icon: Home, label: 'ฟีด' },
@@ -52,18 +52,38 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 
       <CallManager />
 
+      {/* Top Header for Mobile */}
+      <header className="lg:hidden sticky top-0 z-30 bg-white/90 backdrop-blur-md border-b border-zinc-200 px-4 py-2 flex items-center justify-between">
+        <div className="flex items-center gap-2 cursor-pointer" onClick={() => navigate('/')}>
+          <img src={logoImg} alt="Commu Logo" className="h-9 w-auto object-contain" />
+          <span className="font-bold text-zinc-900 text-lg tracking-tight">COMMU</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div onClick={() => navigate('/profile')} className="cursor-pointer">
+            <Avatar
+              src={profile?.photoURL}
+              name={profile?.displayName || 'User'}
+              size="sm"
+            />
+          </div>
+        </div>
+      </header>
+
       <div className="relative flex min-h-screen">
         {/* Sidebar - Desktop */}
         <aside className="hidden lg:flex flex-col w-72 border-r border-zinc-200 bg-white/90 backdrop-blur-xl p-6">
-          <div className="flex items-center gap-3 mb-10">
-            <div className="w-10 h-10 rounded-xl bg-zinc-900 flex items-center justify-center">
-              <Sparkles className="w-5 h-5 text-white" />
+          <div
+            className="flex items-center gap-3 mb-8 cursor-pointer group"
+            onClick={() => navigate('/')}
+          >
+            <div className="w-12 h-12 rounded-2xl bg-zinc-950 p-1.5 flex items-center justify-center shadow-lg border border-zinc-800 transition-transform group-hover:scale-105">
+              <img src={logoImg} alt="Commu Logo" className="w-full h-full object-contain" />
             </div>
             <div>
-              <h1 className="text-xl font-bold text-zinc-900">
-                Commu
+              <h1 className="text-xl font-extrabold text-zinc-900 tracking-tight flex items-center gap-1">
+                COMMU
               </h1>
-              <p className="text-xs text-zinc-500">Social &amp; Chat</p>
+              <p className="text-xs text-zinc-400 font-medium">Social &amp; Communication</p>
             </div>
           </div>
 
@@ -77,7 +97,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                   cn(
                     'flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200',
                     isActive
-                      ? 'bg-zinc-900 text-white'
+                      ? 'bg-zinc-900 text-white shadow-md'
                       : 'text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100'
                   )
                 }
@@ -94,7 +114,10 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           </nav>
 
           <div className="pt-6 border-t border-zinc-200">
-            <div className="flex items-center gap-3 px-2 mb-4">
+            <div
+              className="flex items-center gap-3 px-2 mb-4 cursor-pointer hover:opacity-90 transition-opacity"
+              onClick={() => navigate('/profile')}
+            >
               <Avatar
                 src={profile?.photoURL}
                 name={profile?.displayName || 'User'}
