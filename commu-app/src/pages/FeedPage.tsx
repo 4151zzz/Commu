@@ -4,22 +4,28 @@ import { PostCard } from '@/components/social/PostCard'
 import { PageLoader } from '@/components/ui/Spinner'
 import { useAuth } from '@/contexts/AuthContext'
 import { subscribeToFeed } from '@/services/posts.service'
+import { getBlockedUserIds } from '@/services/blocks.service'
 import type { Post } from '@/types'
 import { AppLayout } from '@/components/layout/AppLayout'
 
 export function FeedPage() {
   const { user } = useAuth()
   const [posts, setPosts] = useState<Post[]>([])
+  const [blockedUserIds, setBlockedUserIds] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     if (!user) return
+    getBlockedUserIds(user.uid).then(setBlockedUserIds)
+
     const unsub = subscribeToFeed(user.uid, (data) => {
       setPosts(data)
       setLoading(false)
     })
     return unsub
   }, [user])
+
+  const visiblePosts = posts.filter((post) => !blockedUserIds.includes(post.authorId))
 
   return (
     <AppLayout>
@@ -32,12 +38,12 @@ export function FeedPage() {
 
       {loading ? (
         <PageLoader />
-      ) : posts.length === 0 ? (
+      ) : visiblePosts.length === 0 ? (
         <div className="text-center py-16">
           <p className="text-zinc-400">ยังไม่มีโพสต์ เป็นคนแรกที่โพสต์เลย!</p>
         </div>
       ) : (
-        posts.map((post) => <PostCard key={post.id} post={post} />)
+        visiblePosts.map((post) => <PostCard key={post.id} post={post} />)
       )}
     </AppLayout>
   )

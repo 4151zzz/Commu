@@ -26,15 +26,30 @@ export interface Conversation {
   lastMessageAt: Date | null
   updatedAt: Date | null
   otherUser?: UserProfile
+  isGroup?: boolean
+  groupName?: string
+  groupPhotoURL?: string
+  createdById?: string
+  adminIds?: string[]
 }
 
 export interface Message {
   id: string
   senderId: string
+  senderName?: string
+  senderPhotoURL?: string
   text: string
   type: 'text' | 'image' | 'call'
   createdAt: Date | null
   readBy: Record<string, Date>
+}
+
+export interface BlockedUser {
+  id: string
+  userId: string
+  blockedUserId: string
+  createdAt: Date | null
+  blockedUser?: UserProfile
 }
 
 export interface Post {

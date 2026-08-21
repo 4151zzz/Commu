@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { Save, Link as LinkIcon, UserPlus, MessageCircle, Phone, Video, Check } from 'lucide-react'
+import { Save, Link as LinkIcon, UserPlus, MessageCircle, Phone, Video, Check, ShieldAlert, ShieldCheck } from 'lucide-react'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { Avatar } from '@/components/ui/Avatar'
 import { Button } from '@/components/ui/Button'
@@ -18,6 +18,7 @@ import {
   getFriendshipStatus,
   sendFriendRequest,
 } from '@/services/friends.service'
+import { blockUser, unblockUser, isUserBlocked } from '@/services/blocks.service'
 import { getOrCreateConversation } from '@/services/chat.service'
 import { startCall } from '@/components/call/CallManager'
 import { uploadImage } from '@/services/storage.service'
@@ -51,6 +52,8 @@ export function ProfilePage() {
   const [saveError, setSaveError] = useState('')
   const [friendshipStatus, setFriendshipStatus] = useState<'none' | 'pending_sent' | 'pending_received' | 'friends'>('none')
   const [requestSending, setRequestSending] = useState(false)
+  const [isBlocked, setIsBlocked] = useState(false)
+  const [blockLoading, setBlockLoading] = useState(false)
 
   const photos = posts.flatMap((p) => p.images || [])
 
@@ -78,10 +81,11 @@ export function ProfilePage() {
     }
   }, [targetUserId, isOwnProfile, myProfile])
 
-  // Load friendship status
+  // Load friendship status and block status
   useEffect(() => {
     if (!user || isOwnProfile || !targetUserId) return
     getFriendshipStatus(user.uid, targetUserId).then(setFriendshipStatus)
+    isUserBlocked(user.uid, targetUserId).then(setIsBlocked)
   }, [user, targetUserId, isOwnProfile])
 
   // Load posts & friends
@@ -322,6 +326,46 @@ export function ProfilePage() {
                             </Button>
                           </>
                         )}
+
+                        {/* Block / Unblock Toggle Button */}
+                        <Button
+                          variant={isBlocked ? 'outline' : 'ghost'}
+                          size="sm"
+                          loading={blockLoading}
+                          onClick={async () => {
+                            if (!user || !targetUserId) return
+                            setBlockLoading(true)
+                            try {
+                              if (isBlocked) {
+                                await unblockUser(user.uid, targetUserId)
+                                setIsBlocked(false)
+                              } else {
+                                if (confirm(`คุณต้องการบล็อก @${viewProfile.username} ใช่หรือไม่? โพสต์และข้อความจากผู้ใช้นี้จะถูกซ่อน`)) {
+                                  await blockUser(user.uid, targetUserId)
+                                  setIsBlocked(true)
+                                }
+                              }
+                            } finally {
+                              setBlockLoading(false)
+                            }
+                          }}
+                          className={cn(
+                            'text-xs transition-colors',
+                            isBlocked ? 'text-emerald-600 hover:bg-emerald-50' : 'text-zinc-400 hover:text-red-600 hover:bg-red-50'
+                          )}
+                        >
+                          {isBlocked ? (
+                            <>
+                              <ShieldCheck className="w-3.5 h-3.5 mr-1" />
+                              ปลดบล็อก
+                            </>
+                          ) : (
+                            <>
+                              <ShieldAlert className="w-3.5 h-3.5 mr-1" />
+                              บล็อก
+                            </>
+                          )}
+                        </Button>
                       </>
                     )}
                   </div>
