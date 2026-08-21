@@ -98,86 +98,146 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    /* Root wrapper — strictly bounded to viewport width, no horizontal overflow */
-    <div
-      style={{ width: '100%', maxWidth: '100vw', overflowX: 'hidden', position: 'relative' }}
-      className="min-h-screen bg-zinc-50 text-zinc-900"
-    >
-      <CallManager />
+    <div className="min-h-screen bg-zinc-50 text-zinc-900" style={{ overflowX: 'hidden' }}>
+      {/* Subtle background pattern — clipped so it never causes horizontal scroll */}
+      <div className="fixed inset-0 pointer-events-none" style={{ overflow: 'hidden', zIndex: 0 }}>
+        <div className="absolute top-0 left-0 w-80 h-80 bg-zinc-200/40 rounded-full blur-3xl -translate-x-1/2 -translate-y-1/4" />
+        <div className="absolute bottom-0 right-0 w-80 h-80 bg-zinc-100/60 rounded-full blur-3xl translate-x-1/2 translate-y-1/4" />
+      </div>
 
-      {/* Push Notification Banner */}
-      {showNotificationPrompt && (
-        <div className="w-full bg-zinc-900 text-white sticky top-0 z-50 shadow-md">
-          <div className="flex items-center gap-2 px-3 py-2 w-full">
-            <BellRing className="w-4 h-4 text-amber-400 shrink-0" />
-            <span className="text-[11px] leading-snug flex-1 min-w-0 truncate">
-              <b>เปิดการแจ้งเตือน</b> เพื่อไม่พลาดข้อความและสายโทร
-            </span>
-            <button
-              onClick={handleEnableNotifications}
-              className="shrink-0 bg-white text-zinc-900 px-2.5 py-1 rounded-full font-bold text-[11px] hover:bg-zinc-100 active:scale-95 transition-all"
-            >
-              เปิด
-            </button>
-            <button
-              onClick={handleDismissPrompt}
-              className="shrink-0 p-1 hover:bg-zinc-800 rounded-lg transition-colors"
-            >
-              <X className="w-3.5 h-3.5" />
-            </button>
+      <div className="relative" style={{ zIndex: 1 }}>
+        <CallManager />
+
+        {/* Push Notification Permission Banner */}
+        {showNotificationPrompt && (
+          <div className="bg-zinc-900 text-white text-xs px-4 py-2.5 sticky top-0 z-50 shadow-md">
+            <div className="flex items-center gap-2 max-w-2xl mx-auto">
+              <BellRing className="w-4 h-4 text-amber-400 flex-shrink-0 animate-bounce" />
+              <span className="leading-tight flex-1 min-w-0">
+                <b>เปิดการแจ้งเตือน</b> เพื่อไม่พลาดข้อความและสายโทร
+              </span>
+              <button
+                onClick={handleEnableNotifications}
+                className="flex-shrink-0 bg-white text-zinc-900 px-3 py-1 rounded-full font-bold hover:bg-zinc-100 transition-all active:scale-95 text-[11px]"
+              >
+                เปิด
+              </button>
+              <button
+                onClick={handleDismissPrompt}
+                className="flex-shrink-0 p-1 hover:bg-zinc-800 rounded-lg transition-colors"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Top Header — Mobile only */}
-      <header className="lg:hidden sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-zinc-200 w-full">
-        <div className="flex items-center justify-between px-4 py-2 w-full">
-          <button
-            className="flex items-center gap-2"
-            onClick={() => navigate('/')}
-          >
-            <img src={logoImg} alt="Commu Logo" className="h-8 w-auto object-contain" />
-            <span className="font-bold text-zinc-900 text-base tracking-tight">COMMU</span>
-          </button>
-          <div className="flex items-center gap-1.5">
+        {/* Top Header for Mobile */}
+        <header className="lg:hidden sticky top-0 z-30 bg-white/90 backdrop-blur-md border-b border-zinc-200 px-4 py-2 flex items-center justify-between">
+          <div className="flex items-center gap-2 cursor-pointer" onClick={() => navigate('/')}>
+            <img src={logoImg} alt="Commu Logo" className="h-9 w-auto object-contain" />
+            <span className="font-bold text-zinc-900 text-lg tracking-tight">COMMU</span>
+          </div>
+          <div className="flex items-center gap-2">
             <button
               onClick={() => navigate('/notifications')}
               className="relative p-2 text-zinc-600 hover:text-zinc-900 rounded-full hover:bg-zinc-100 transition-colors"
+              title="แจ้งเตือน"
             >
               <Bell className="w-5 h-5" />
               {unreadCount > 0 && (
                 <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-zinc-900 rounded-full" />
               )}
             </button>
-            <button onClick={() => navigate('/profile')}>
+            <div onClick={() => navigate('/profile')} className="cursor-pointer">
               <Avatar
                 src={profile?.photoURL}
                 name={profile?.displayName || 'User'}
                 size="sm"
               />
-            </button>
+            </div>
           </div>
+        </header>
+
+        <div className="flex min-h-screen">
+          {/* Sidebar - Desktop */}
+          <aside className="hidden lg:flex flex-col w-72 border-r border-zinc-200 bg-white/90 backdrop-blur-xl p-6 flex-shrink-0">
+            <div
+              className="flex items-center gap-3 mb-8 cursor-pointer group"
+              onClick={() => navigate('/')}
+            >
+              <div className="w-12 h-12 flex items-center justify-center transition-transform group-hover:scale-105">
+                <img src={logoImg} alt="Commu Logo" className="w-full h-full object-contain" />
+              </div>
+              <div>
+                <h1 className="text-xl font-extrabold text-zinc-900 tracking-tight">COMMU</h1>
+                <p className="text-xs text-zinc-400 font-medium">Social &amp; Communication</p>
+              </div>
+            </div>
+
+            <nav className="flex-1 space-y-1">
+              {navItems.map(({ to, icon: Icon, label }) => (
+                <NavLink
+                  key={to}
+                  to={to}
+                  end={to === '/'}
+                  className={({ isActive }) =>
+                    cn(
+                      'flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200',
+                      isActive
+                        ? 'bg-zinc-900 text-white shadow-md'
+                        : 'text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100'
+                    )
+                  }
+                >
+                  <Icon className="w-5 h-5" />
+                  <span className="font-medium">{label}</span>
+                  {to === '/notifications' && unreadCount > 0 && (
+                    <span className="ml-auto bg-zinc-900 text-white text-xs px-2 py-0.5 rounded-full">
+                      {unreadCount}
+                    </span>
+                  )}
+                </NavLink>
+              ))}
+            </nav>
+
+            <div className="pt-6 border-t border-zinc-200">
+              <div
+                className="flex items-center gap-3 px-2 mb-4 cursor-pointer hover:opacity-90 transition-opacity"
+                onClick={() => navigate('/profile')}
+              >
+                <Avatar
+                  src={profile?.photoURL}
+                  name={profile?.displayName || 'User'}
+                  size="md"
+                  online={profile?.isOnline}
+                />
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium text-sm truncate text-zinc-900">{profile?.displayName}</p>
+                  <p className="text-xs text-zinc-500 truncate">@{profile?.username}</p>
+                </div>
+              </div>
+              <button
+                onClick={handleLogout}
+                className="flex items-center gap-3 w-full px-4 py-3 rounded-xl text-zinc-500 hover:text-red-600 hover:bg-red-50 transition-all"
+              >
+                <LogOut className="w-5 h-5" />
+                <span className="font-medium">ออกจากระบบ</span>
+              </button>
+            </div>
+          </aside>
+
+          {/* Main content */}
+          <main className="flex-1 min-w-0 flex flex-col pb-20 lg:pb-0" style={{ overflowX: 'hidden' }}>
+            <div className="flex-1 max-w-2xl w-full mx-auto px-4 py-6 lg:py-8">
+              {children}
+            </div>
+          </main>
         </div>
-      </header>
 
-      {/* Page body: sidebar (desktop) + content */}
-      <div className="flex w-full" style={{ minHeight: 'calc(100vh - 49px)' }}>
-        {/* Sidebar — Desktop */}
-        <aside className="hidden lg:flex flex-col w-64 xl:w-72 shrink-0 border-r border-zinc-200 bg-white/90 backdrop-blur-xl p-5">
-          <button
-            className="flex items-center gap-3 mb-8 cursor-pointer group text-left"
-            onClick={() => navigate('/')}
-          >
-            <div className="w-10 h-10 flex items-center justify-center transition-transform group-hover:scale-105">
-              <img src={logoImg} alt="Commu Logo" className="w-full h-full object-contain" />
-            </div>
-            <div>
-              <h1 className="text-lg font-extrabold text-zinc-900 tracking-tight">COMMU</h1>
-              <p className="text-xs text-zinc-400 font-medium">Social &amp; Communication</p>
-            </div>
-          </button>
-
-          <nav className="flex-1 space-y-1">
+        {/* Bottom nav - Mobile */}
+        <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-xl border-t border-zinc-200 px-2 py-2">
+          <div className="flex items-center justify-around max-w-lg mx-auto">
             {navItems.map(({ to, icon: Icon, label }) => (
               <NavLink
                 key={to}
@@ -185,85 +245,21 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                 end={to === '/'}
                 className={({ isActive }) =>
                   cn(
-                    'flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200',
-                    isActive
-                      ? 'bg-zinc-900 text-white shadow-md'
-                      : 'text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100'
+                    'relative flex flex-col items-center gap-1 px-3 py-2 rounded-xl transition-all',
+                    isActive ? 'text-zinc-900' : 'text-zinc-400'
                   )
                 }
               >
-                <Icon className="w-5 h-5 shrink-0" />
-                <span className="font-medium">{label}</span>
+                <Icon className="w-5 h-5" />
+                <span className="text-[10px] font-medium">{label}</span>
                 {to === '/notifications' && unreadCount > 0 && (
-                  <span className="ml-auto bg-zinc-900 text-white text-xs px-2 py-0.5 rounded-full">
-                    {unreadCount}
-                  </span>
+                  <span className="absolute top-1 right-1 w-2 h-2 bg-zinc-900 rounded-full" />
                 )}
               </NavLink>
             ))}
-          </nav>
-
-          <div className="pt-5 border-t border-zinc-200">
-            <button
-              className="flex items-center gap-3 px-2 mb-4 w-full hover:opacity-90 transition-opacity text-left"
-              onClick={() => navigate('/profile')}
-            >
-              <Avatar
-                src={profile?.photoURL}
-                name={profile?.displayName || 'User'}
-                size="md"
-                online={profile?.isOnline}
-              />
-              <div className="flex-1 min-w-0">
-                <p className="font-medium text-sm truncate text-zinc-900">{profile?.displayName}</p>
-                <p className="text-xs text-zinc-500 truncate">@{profile?.username}</p>
-              </div>
-            </button>
-            <button
-              onClick={handleLogout}
-              className="flex items-center gap-3 w-full px-4 py-3 rounded-xl text-zinc-500 hover:text-red-600 hover:bg-red-50 transition-all"
-            >
-              <LogOut className="w-5 h-5 shrink-0" />
-              <span className="font-medium">ออกจากระบบ</span>
-            </button>
           </div>
-        </aside>
-
-        {/* Main content — takes remaining width, strictly bounded */}
-        <main
-          className="flex-1 min-w-0 pb-20 lg:pb-0"
-          style={{ overflowX: 'hidden', maxWidth: '100%' }}
-        >
-          <div className="w-full max-w-2xl mx-auto px-4 py-5 lg:py-8">
-            {children}
-          </div>
-        </main>
+        </nav>
       </div>
-
-      {/* Bottom nav — Mobile */}
-      <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-xl border-t border-zinc-200">
-        <div className="flex items-center justify-around px-1 py-1.5">
-          {navItems.map(({ to, icon: Icon, label }) => (
-            <NavLink
-              key={to}
-              to={to}
-              end={to === '/'}
-              className={({ isActive }) =>
-                cn(
-                  'relative flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl transition-all min-w-0',
-                  isActive ? 'text-zinc-900' : 'text-zinc-400'
-                )
-              }
-            >
-              <Icon className="w-5 h-5" />
-              <span className="text-[10px] font-medium">{label}</span>
-              {to === '/notifications' && unreadCount > 0 && (
-                <span className="absolute top-1 right-1 w-2 h-2 bg-zinc-900 rounded-full" />
-              )}
-            </NavLink>
-          ))}
-        </div>
-      </nav>
     </div>
   )
 }
