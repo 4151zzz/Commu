@@ -140,6 +140,16 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           <span className="font-bold text-zinc-900 text-lg tracking-tight">COMMU</span>
         </div>
         <div className="flex items-center gap-2">
+          <button
+            onClick={() => navigate('/notifications')}
+            className="relative p-2 text-zinc-600 hover:text-zinc-900 rounded-full hover:bg-zinc-100 transition-colors"
+            title="แจ้งเตือน"
+          >
+            <Bell className="w-5 h-5" />
+            {unreadCount > 0 && (
+              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-zinc-900 rounded-full" />
+            )}
+          </button>
           <div onClick={() => navigate('/profile')} className="cursor-pointer">
             <Avatar
               src={profile?.photoURL}

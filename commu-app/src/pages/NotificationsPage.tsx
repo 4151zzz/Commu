@@ -9,6 +9,9 @@ import {
   Phone,
   CheckCheck,
   Trash2,
+  BellRing,
+  CheckCircle2,
+  Smartphone,
 } from 'lucide-react'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { Avatar } from '@/components/ui/Avatar'
@@ -24,6 +27,10 @@ import {
   deleteNotification,
   cleanupOldNotifications,
 } from '@/services/notifications.service'
+import {
+  requestNotificationPermission,
+  getNotificationPermissionStatus,
+} from '@/services/push.service'
 import type { AppNotification } from '@/types'
 import { useNavigate } from 'react-router-dom'
 
@@ -54,6 +61,12 @@ export function NotificationsPage() {
   const navigate = useNavigate()
   const [notifications, setNotifications] = useState<AppNotification[]>([])
   const [loading, setLoading] = useState(true)
+  const [pushStatus, setPushStatus] = useState<NotificationPermission | 'unsupported'>('default')
+  const [enablingPush, setEnablingPush] = useState(false)
+
+  useEffect(() => {
+    setPushStatus(getNotificationPermissionStatus())
+  }, [])
 
   useEffect(() => {
     if (!user) return
@@ -67,6 +80,21 @@ export function NotificationsPage() {
     })
     return unsub
   }, [user])
+
+  const handleEnablePush = async () => {
+    if (!user) return
+    setEnablingPush(true)
+    try {
+      const granted = await requestNotificationPermission(user.uid)
+      if (granted) {
+        setPushStatus('granted')
+      } else {
+        setPushStatus(getNotificationPermissionStatus())
+      }
+    } finally {
+      setEnablingPush(false)
+    }
+  }
 
   const handleRead = async (id: string) => {
     await markNotificationRead(id)
@@ -95,6 +123,47 @@ export function NotificationsPage() {
           </Button>
         )}
       </div>
+
+      {/* Push Notification Setup Card for Mobile & PC */}
+      <Card className="p-4 mb-6 bg-gradient-to-br from-zinc-900 to-zinc-950 text-white border-zinc-800 shadow-xl">
+        <div className="flex items-start gap-3.5">
+          <div className="w-10 h-10 rounded-2xl bg-white/10 flex items-center justify-center shrink-0">
+            {pushStatus === 'granted' ? (
+              <CheckCircle2 className="w-5 h-5 text-emerald-400" />
+            ) : (
+              <BellRing className="w-5 h-5 text-amber-400 animate-pulse" />
+            )}
+          </div>
+          <div className="flex-1 min-w-0">
+            <h3 className="font-semibold text-sm">การแจ้งเตือนพุช (เมื่อปิดหน้าจอ/ปิดเว็บ)</h3>
+            <p className="text-xs text-zinc-300 mt-0.5 leading-relaxed">
+              {pushStatus === 'granted'
+                ? 'เปิดการแจ้งเตือนบนอุปกรณ์นี้เรียบร้อยแล้ว คุณจะได้รับข้อความและสายโทรเข้าทันที'
+                : 'เปิดรับการแจ้งเตือนบนโทรศัพท์หรือคอมพิวเตอร์ของคุณ เพื่อไม่พลาดทุกข้อความสำคัญ'}
+            </p>
+
+            {pushStatus !== 'granted' && (
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                <Button
+                  size="sm"
+                  onClick={handleEnablePush}
+                  loading={enablingPush}
+                  className="bg-white hover:bg-zinc-100 text-zinc-900 font-semibold text-xs shadow-md active:scale-95"
+                >
+                  <Bell className="w-3.5 h-3.5 mr-1" />
+                  เปิดการแจ้งเตือนบนเครื่องนี้
+                </Button>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Note for iOS users */}
+        <div className="mt-3 pt-3 border-t border-white/10 flex items-center gap-2 text-[11px] text-zinc-400">
+          <Smartphone className="w-3.5 h-3.5 shrink-0" />
+          <span><b>ผู้ใช้ iPhone (iOS):</b> กดปุ่ม Share ที่ Safari แล้วเลือก <i>"เพิ่มไปยังหน้าจอโฮม (Add to Home Screen)"</i> เพื่อเปิดรับการแจ้งเตือน</span>
+        </div>
+      </Card>
 
       {loading ? (
         <PageLoader />
