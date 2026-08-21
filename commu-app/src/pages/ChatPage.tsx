@@ -43,6 +43,7 @@ export function ChatPage() {
   const [selectedFriendIds, setSelectedFriendIds] = useState<string[]>([])
   const [creatingGroup, setCreatingGroup] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (!user) return
@@ -84,6 +85,8 @@ export function ChatPage() {
     const recipientId = activeConv.isGroup ? undefined : activeConv.otherUser?.uid
     await sendMessage(activeConv.id, user.uid, text.trim(), recipientId)
     setText('')
+    // Blur input so iOS Safari zooms back out immediately after send
+    inputRef.current?.blur()
   }
 
   const handleToggleFriendSelection = (friendUid: string) => {
@@ -170,7 +173,8 @@ export function ChatPage() {
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="ค้นหาเพื่อนหรือกลุ่ม..."
-                className="w-full pl-9 pr-4 py-2 rounded-xl bg-zinc-100 border border-zinc-200 text-xs text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-900/20"
+                className="w-full pl-9 pr-4 py-2 rounded-xl bg-zinc-100 border border-zinc-200 text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-900/20"
+                style={{ fontSize: '16px' }}
               />
             </div>
           </div>
@@ -364,11 +368,13 @@ export function ChatPage() {
               <div className="p-3 sm:p-4 border-t border-zinc-200 bg-white">
                 <div className="flex gap-2">
                   <input
+                    ref={inputRef}
                     value={text}
                     onChange={(e) => setText(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && handleSend()}
                     placeholder={isGroup ? `ส่งข้อความถึงกลุ่ม ${activeConv.groupName}...` : 'พิมพ์ข้อความ...'}
-                    className="flex-1 px-4 py-2.5 rounded-xl bg-zinc-100 border border-zinc-200 text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-900/20 text-sm"
+                    className="flex-1 px-4 py-2.5 rounded-xl bg-zinc-100 border border-zinc-200 text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-900/20"
+                    style={{ fontSize: '16px' }}
                   />
                   <Button size="icon" onClick={handleSend} disabled={!text.trim()}>
                     <Send className="w-4 h-4" />
@@ -396,8 +402,9 @@ export function ChatPage() {
             <input
               value={groupName}
               onChange={(e) => setGroupName(e.target.value)}
-              placeholder="เช่น กลุ่มเพื่อนสนิท, งานโปรเจกต์..."
+              placeholder="เช่น กลุ่มเพื่อนสนิท, งานโปรเจ็กต์..."
               className="w-full px-3.5 py-2.5 rounded-xl bg-zinc-100 border border-zinc-200 text-sm text-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900/20"
+              style={{ fontSize: '16px' }}
             />
           </div>
 
