@@ -58,14 +58,14 @@ export function CreatePost({ onCreated }: CreatePostProps) {
   }
 
   return (
-    <Card className="p-5 mb-6">
-      <div className="flex gap-4">
+    <Card className="p-4 mb-4">
+      <div className="flex gap-3">
         <Avatar
           src={profile?.photoURL}
           name={profile?.displayName || 'User'}
           size="md"
         />
-        <div className="flex-1">
+        <div className="flex-1 min-w-0">
           <textarea
             value={content}
             onChange={(e) => setContent(e.target.value)}

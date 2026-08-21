@@ -214,7 +214,7 @@ export function PostCard({ post, onUpdate, onDeleted }: PostCardProps) {
 
   return (
     <>
-      <Card className="p-5 mb-4">
+      <Card className="p-4 mb-3 overflow-hidden">
         {post.isRepost && (
           <div
             onClick={() => post.authorId && goToProfile(post.authorId)}
@@ -229,22 +229,22 @@ export function PostCard({ post, onUpdate, onDeleted }: PostCardProps) {
           <p className="text-zinc-900 mb-3">{post.repostCaption}</p>
         )}
 
-        <div className="flex items-center justify-between gap-3 mb-4">
+        <div className="flex items-center justify-between gap-2 mb-3">
           {/* Author avatar & info with click to profile */}
           <div
             onClick={() => goToProfile(displayPost.authorId)}
-            className="flex items-center gap-3 cursor-pointer group min-w-0"
+            className="flex items-center gap-2.5 cursor-pointer group min-w-0 flex-1"
           >
             <Avatar
               src={displayPost.author?.photoURL}
               name={displayPost.author?.displayName || 'User'}
               size="md"
             />
-            <div className="min-w-0">
-              <p className="font-semibold text-zinc-900 group-hover:underline truncate">
+            <div className="min-w-0 flex-1">
+              <p className="font-semibold text-zinc-900 group-hover:underline truncate text-sm">
                 {displayPost.author?.displayName}
               </p>
-              <p className="text-sm text-zinc-400 truncate">
+              <p className="text-xs text-zinc-400 truncate">
                 @{displayPost.author?.username} · {formatTimeAgo(displayPost.createdAt)}
               </p>
             </div>
@@ -293,7 +293,7 @@ export function PostCard({ post, onUpdate, onDeleted }: PostCardProps) {
         </div>
 
         {displayPost.content && (
-          <p className="text-[15px] text-zinc-800 leading-relaxed mb-4 whitespace-pre-wrap">
+          <p className="text-sm text-zinc-800 leading-relaxed mb-3 whitespace-pre-wrap break-words overflow-hidden">
             {displayPost.content}
           </p>
         )}
