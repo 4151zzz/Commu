@@ -34,13 +34,13 @@ export function LoginPage() {
 
       <div className="relative w-full max-w-md">
         <div className="text-center mb-8 flex flex-col items-center">
-          <div className="w-24 h-24 rounded-3xl bg-zinc-950 p-3 flex items-center justify-center mb-4 shadow-2xl border border-zinc-800">
+          <div className="w-28 h-28 flex items-center justify-center mb-2">
             <img src={logoImg} alt="Commu Logo" className="w-full h-full object-contain" />
           </div>
           <h1 className="text-3xl font-extrabold text-zinc-900 tracking-tight">
             ยินดีต้อนรับสู่ COMMU
           </h1>
-          <p className="text-zinc-500 mt-2 text-sm">เข้าสู่ระบบเพื่อเชื่อมต่อกับเพื่อนของคุณ</p>
+          <p className="text-zinc-500 mt-1 text-sm">เข้าสู่ระบบเพื่อเชื่อมต่อกับเพื่อนของคุณ</p>
         </div>
 
         <form
@@ -164,13 +164,13 @@ export function RegisterPage() {
 
       <div className="relative w-full max-w-md">
         <div className="text-center mb-8 flex flex-col items-center">
-          <div className="w-24 h-24 rounded-3xl bg-zinc-950 p-3 flex items-center justify-center mb-4 shadow-2xl border border-zinc-800">
+          <div className="w-28 h-28 flex items-center justify-center mb-2">
             <img src={logoImg} alt="Commu Logo" className="w-full h-full object-contain" />
           </div>
           <h1 className="text-3xl font-extrabold text-zinc-900 tracking-tight">
             สร้างบัญชี COMMU
           </h1>
-          <p className="text-zinc-500 mt-2 text-sm">เริ่มต้นประสบการณ์โซเชียลของคุณ</p>
+          <p className="text-zinc-500 mt-1 text-sm">เริ่มต้นประสบการณ์โซเชียลของคุณ</p>
         </div>
 
         <form

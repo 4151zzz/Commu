@@ -100,7 +100,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="min-h-screen bg-zinc-50 text-zinc-900">
+    <div className="min-h-screen w-full max-w-full overflow-x-hidden bg-zinc-50 text-zinc-900">
       {/* Subtle background pattern */}
       <div className="fixed inset-0 pointer-events-none">
         <div className="absolute top-0 left-1/4 w-96 h-96 bg-zinc-200/40 rounded-full blur-3xl" />
@@ -111,24 +111,28 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 
       {/* Push Notification Permission Banner */}
       {showNotificationPrompt && (
-        <div className="bg-zinc-900 text-white text-xs px-4 py-2.5 flex items-center justify-between gap-3 sticky top-0 z-50 shadow-md">
-          <div className="flex items-center gap-2 max-w-xl mx-auto flex-1">
-            <BellRing className="w-4 h-4 text-amber-400 flex-shrink-0 animate-bounce" />
-            <span className="leading-tight">
-              <b>เปิดการแจ้งเตือน</b> เพื่อให้รู้ทันทีเมื่อมีข้อความหรือคนโทรเข้า แม้จะปิดหน้าเว็บอยู่
-            </span>
-            <button
-              onClick={handleEnableNotifications}
-              className="ml-auto bg-white text-zinc-900 px-3 py-1 rounded-full font-bold hover:bg-zinc-100 transition-all active:scale-95 flex-shrink-0"
-            >
-              เปิดรับแจ้งเตือน
-            </button>
-            <button
-              onClick={handleDismissPrompt}
-              className="p-1 hover:bg-zinc-800 rounded-lg transition-colors flex-shrink-0"
-            >
-              <X className="w-3.5 h-3.5" />
-            </button>
+        <div className="w-full bg-zinc-900 text-white text-xs px-3 py-2 sticky top-0 z-50 shadow-md">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-2 max-w-xl mx-auto w-full">
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              <BellRing className="w-4 h-4 text-amber-400 shrink-0 animate-bounce" />
+              <span className="leading-tight text-[11px] sm:text-xs">
+                <b>เปิดการแจ้งเตือน</b> เพื่อไม่พลาดทุกข้อความและสายโทรเข้า
+              </span>
+            </div>
+            <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
+              <button
+                onClick={handleEnableNotifications}
+                className="bg-white text-zinc-900 px-3 py-1 rounded-full font-bold hover:bg-zinc-100 transition-all active:scale-95 text-[11px]"
+              >
+                เปิดรับแจ้งเตือน
+              </button>
+              <button
+                onClick={handleDismissPrompt}
+                className="p-1 hover:bg-zinc-800 rounded-lg transition-colors"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -160,14 +164,14 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         </div>
       </header>
 
-      <div className="relative flex min-h-screen">
+      <div className="relative flex min-h-screen w-full max-w-full">
         {/* Sidebar - Desktop */}
         <aside className="hidden lg:flex flex-col w-72 border-r border-zinc-200 bg-white/90 backdrop-blur-xl p-6">
           <div
             className="flex items-center gap-3 mb-8 cursor-pointer group"
             onClick={() => navigate('/')}
           >
-            <div className="w-12 h-12 rounded-2xl bg-zinc-950 p-1.5 flex items-center justify-center shadow-lg border border-zinc-800 transition-transform group-hover:scale-105">
+            <div className="w-12 h-12 flex items-center justify-center transition-transform group-hover:scale-105">
               <img src={logoImg} alt="Commu Logo" className="w-full h-full object-contain" />
             </div>
             <div>
