@@ -18,6 +18,7 @@ import type { Conversation, Message } from '@/types'
 import { getConversationId } from '@/lib/utils'
 import { getUserProfile } from './auth.service'
 import { createNotification } from './notifications.service'
+import { sendPushNotification } from './push.service'
 
 function mapMessage(id: string, data: Record<string, unknown>): Message {
   return {
@@ -71,13 +72,24 @@ export async function sendMessage(
   })
 
   const sender = await getUserProfile(senderId)
+  const senderName = sender?.displayName || 'เพื่อนของคุณ'
+  const messagePreview = text.slice(0, 50) + (text.length > 50 ? '...' : '')
+
   await createNotification({
     recipientId,
     type: 'message',
     fromUserId: senderId,
     referenceId: conversationId,
-    message: `${sender?.displayName || 'Someone'}: ${text.slice(0, 50)}${text.length > 50 ? '...' : ''}`,
+    message: `${senderName}: ${messagePreview}`,
   })
+
+  // Trigger web push notification
+  sendPushNotification(
+    recipientId,
+    `💬 ข้อความใหม่จาก ${senderName}`,
+    messagePreview,
+    `/chat`
+  )
 }
 
 export function subscribeToMessages(

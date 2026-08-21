@@ -6,13 +6,20 @@ import {
   Bell,
   User,
   LogOut,
+  BellRing,
+  X,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/contexts/AuthContext'
 import { Avatar } from '@/components/ui/Avatar'
 import { logoutUser } from '@/services/auth.service'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { subscribeToNotifications, getUnreadCount } from '@/services/notifications.service'
+import {
+  requestNotificationPermission,
+  showLocalNotification,
+  registerServiceWorker,
+} from '@/services/push.service'
 import type { AppNotification } from '@/types'
 import { CallManager } from '@/components/call/CallManager'
 import logoImg from '@/assets/logo.png'
@@ -29,10 +36,47 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const { user, profile } = useAuth()
   const navigate = useNavigate()
   const [notifications, setNotifications] = useState<AppNotification[]>([])
+  const [showNotificationPrompt, setShowNotificationPrompt] = useState(false)
+  const previousNotifCountRef = useRef<number | null>(null)
+
+  // Initialize service worker & check permission
+  useEffect(() => {
+    registerServiceWorker()
+    if (typeof window !== 'undefined' && 'Notification' in window) {
+      if (Notification.permission === 'default') {
+        const dismissed = localStorage.getItem('commu_dismiss_notif_prompt')
+        if (!dismissed) {
+          setShowNotificationPrompt(true)
+        }
+      }
+    }
+  }, [])
 
   useEffect(() => {
     if (!user) return
-    return subscribeToNotifications(user.uid, setNotifications)
+    return subscribeToNotifications(user.uid, (newNotifs) => {
+      // If new unread notification arrives and window is not focused, trigger desktop/mobile alert
+      if (
+        previousNotifCountRef.current !== null &&
+        newNotifs.length > previousNotifCountRef.current &&
+        document.hidden
+      ) {
+        const latest = newNotifs[0]
+        if (latest && !latest.read) {
+          showLocalNotification(
+            latest.fromUser?.displayName
+              ? `🔔 ${latest.fromUser.displayName}`
+              : '🔔 การแจ้งเตือนใหม่จาก COMMU',
+            {
+              body: latest.message,
+              data: { url: latest.type === 'message' ? '/chat' : '/notifications' },
+            }
+          )
+        }
+      }
+      previousNotifCountRef.current = newNotifs.length
+      setNotifications(newNotifs)
+    })
   }, [user])
 
   const unreadCount = getUnreadCount(notifications)
@@ -40,6 +84,19 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const handleLogout = async () => {
     await logoutUser()
     navigate('/login')
+  }
+
+  const handleEnableNotifications = async () => {
+    if (!user) return
+    const granted = await requestNotificationPermission(user.uid)
+    if (granted) {
+      setShowNotificationPrompt(false)
+    }
+  }
+
+  const handleDismissPrompt = () => {
+    setShowNotificationPrompt(false)
+    localStorage.setItem('commu_dismiss_notif_prompt', 'true')
   }
 
   return (
@@ -51,6 +108,30 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       </div>
 
       <CallManager />
+
+      {/* Push Notification Permission Banner */}
+      {showNotificationPrompt && (
+        <div className="bg-zinc-900 text-white text-xs px-4 py-2.5 flex items-center justify-between gap-3 sticky top-0 z-50 shadow-md">
+          <div className="flex items-center gap-2 max-w-xl mx-auto flex-1">
+            <BellRing className="w-4 h-4 text-amber-400 flex-shrink-0 animate-bounce" />
+            <span className="leading-tight">
+              <b>เปิดการแจ้งเตือน</b> เพื่อให้รู้ทันทีเมื่อมีข้อความหรือคนโทรเข้า แม้จะปิดหน้าเว็บอยู่
+            </span>
+            <button
+              onClick={handleEnableNotifications}
+              className="ml-auto bg-white text-zinc-900 px-3 py-1 rounded-full font-bold hover:bg-zinc-100 transition-all active:scale-95 flex-shrink-0"
+            >
+              เปิดรับแจ้งเตือน
+            </button>
+            <button
+              onClick={handleDismissPrompt}
+              className="p-1 hover:bg-zinc-800 rounded-lg transition-colors flex-shrink-0"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Top Header for Mobile */}
       <header className="lg:hidden sticky top-0 z-30 bg-white/90 backdrop-blur-md border-b border-zinc-200 px-4 py-2 flex items-center justify-between">
