@@ -1,4 +1,4 @@
-import { PhoneOff, Mic, MicOff, Video, VideoOff, Volume2, VolumeX } from 'lucide-react'
+import { PhoneOff, Mic, MicOff, Video, VideoOff, Volume2, Volume1 } from 'lucide-react'
 import { useCallStore } from '@/stores/callStore'
 import { Avatar } from '@/components/ui/Avatar'
 import type { CallSession, UserProfile } from '@/types'
@@ -35,7 +35,9 @@ export function CallModal({ call, onHangUp, ringing }: CallModalProps) {
   const remoteVideoRef = useRef<HTMLVideoElement>(null)
   const remoteAudioRef = useRef<HTMLAudioElement>(null)
   const [remoteUser, setRemoteUser] = useState<UserProfile | null>(null)
-  const [speakerOn, setSpeakerOn] = useState(true)
+  
+  // Speaker state: false = Normal/Earpiece volume (0.35), true = Loud Speakerphone (1.0)
+  const [isSpeakerPhone, setIsSpeakerPhone] = useState(false)
 
   const isConnected = !ringing && call.status === 'accepted'
   const timer = useCallTimer(isConnected)
@@ -63,14 +65,15 @@ export function CallModal({ call, onHangUp, ringing }: CallModalProps) {
     }
   }, [remoteStream, remoteVideoOff])
 
-  // ── CRITICAL: Remote Audio Stream Playback (WebRTC Output) ──
+  // ── CRITICAL: Remote Audio Stream Playback & Volume Control ──
   useEffect(() => {
     const audioEl = remoteAudioRef.current
     if (!audioEl || !remoteStream) return
 
     audioEl.srcObject = remoteStream
     audioEl.muted = false
-    audioEl.volume = speakerOn ? 1.0 : 0.0
+    // Normal earpiece volume = 0.35, Loud speakerphone volume = 1.0
+    audioEl.volume = isSpeakerPhone ? 1.0 : 0.35
 
     const playPromise = audioEl.play()
     if (playPromise !== undefined) {
@@ -78,7 +81,7 @@ export function CallModal({ call, onHangUp, ringing }: CallModalProps) {
         console.warn('[WebRTC] Audio autoplay policy prevented initial play, awaiting user interaction:', err)
       })
     }
-  }, [remoteStream, speakerOn])
+  }, [remoteStream, isSpeakerPhone])
 
   // Fallback: If user touches or clicks anywhere on call modal, ensure audio element plays
   const handleInteraction = () => {
@@ -88,15 +91,12 @@ export function CallModal({ call, onHangUp, ringing }: CallModalProps) {
     }
   }
 
-  // ── Speaker toggle ──
+  // ── Speaker toggle (Normal/Earpiece vs Loud Speakerphone) ──
   const toggleSpeaker = useCallback(() => {
-    setSpeakerOn((prev) => {
+    setIsSpeakerPhone((prev) => {
       const next = !prev
       if (remoteAudioRef.current) {
-        remoteAudioRef.current.volume = next ? 1.0 : 0.0
-      }
-      if (remoteVideoRef.current) {
-        remoteVideoRef.current.muted = !next
+        remoteAudioRef.current.volume = next ? 1.0 : 0.35
       }
       return next
     })
@@ -171,7 +171,12 @@ export function CallModal({ call, onHangUp, ringing }: CallModalProps) {
                   ))}
                 </div>
               ) : isConnected ? (
-                <p className="text-white/70 text-lg font-mono mt-1 tracking-widest">{timer}</p>
+                <div className="mt-1 flex flex-col items-center gap-1">
+                  <p className="text-white/80 text-lg font-mono tracking-widest">{timer}</p>
+                  <span className={`text-[11px] px-2.5 py-0.5 rounded-full ${isSpeakerPhone ? 'bg-white/20 text-white font-medium' : 'bg-black/30 text-zinc-400'}`}>
+                    {isSpeakerPhone ? '🔊 ลำโพงนอก (ดังสุด)' : '🔈 เสียงแนบหูปกติ'}
+                  </span>
+                </div>
               ) : (
                 <p className="text-zinc-400 text-sm mt-1 animate-pulse">กำลังเชื่อมต่อสัญญาณ...</p>
               )}
@@ -181,8 +186,11 @@ export function CallModal({ call, onHangUp, ringing }: CallModalProps) {
 
         {/* Timer overlay for video call */}
         {isVideo && remoteStream && !remoteVideoOff && isConnected && (
-          <div className="absolute top-6 left-1/2 -translate-x-1/2 bg-black/40 backdrop-blur-sm px-4 py-1.5 rounded-full border border-white/10">
+          <div className="absolute top-6 left-1/2 -translate-x-1/2 bg-black/40 backdrop-blur-sm px-4 py-1.5 rounded-full border border-white/10 flex items-center gap-2">
             <p className="text-white font-mono text-sm tracking-widest">{timer}</p>
+            <span className="text-white/70 text-xs">
+              {isSpeakerPhone ? '🔊' : '🔈'}
+            </span>
           </div>
         )}
 
@@ -232,7 +240,7 @@ export function CallModal({ call, onHangUp, ringing }: CallModalProps) {
             <span className="text-zinc-300 text-[11px]">วางสาย</span>
           </div>
 
-          {/* Speaker toggle */}
+          {/* Speaker toggle (Normal/Earpiece vs Speakerphone) */}
           <div className="flex flex-col items-center gap-1.5">
             <button
               onClick={(e) => {
@@ -240,14 +248,16 @@ export function CallModal({ call, onHangUp, ringing }: CallModalProps) {
                 toggleSpeaker()
               }}
               className={`w-14 h-14 rounded-full flex items-center justify-center transition-all active:scale-95 shadow-md ${
-                speakerOn
-                  ? 'bg-white/20 text-white hover:bg-white/30 backdrop-blur-md'
-                  : 'bg-white text-zinc-900'
+                isSpeakerPhone
+                  ? 'bg-white text-zinc-900 shadow-white/20 shadow-lg'
+                  : 'bg-white/20 text-white hover:bg-white/30 backdrop-blur-md'
               }`}
             >
-              {speakerOn ? <Volume2 className="w-6 h-6" /> : <VolumeX className="w-6 h-6" />}
+              {isSpeakerPhone ? <Volume2 className="w-6 h-6" /> : <Volume1 className="w-6 h-6" />}
             </button>
-            <span className="text-zinc-300 text-[11px]">{speakerOn ? 'ลำโพง' : 'ปิดเสียง'}</span>
+            <span className="text-zinc-300 text-[11px]">
+              {isSpeakerPhone ? 'ลำโพง (ดัง)' : 'เสียงปกติ'}
+            </span>
           </div>
 
           {/* Video toggle (video call only) */}

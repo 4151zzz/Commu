@@ -9,6 +9,7 @@ import { Card } from '@/components/ui/Card'
 import { PostCard } from '@/components/social/PostCard'
 import { ImageViewerModal } from '@/components/ui/ImageViewerModal'
 import { PageLoader } from '@/components/ui/Spinner'
+import { cn } from '@/lib/utils'
 import { useAuth } from '@/contexts/AuthContext'
 import { updateUserProfile, getUserProfile } from '@/services/auth.service'
 import { invalidateProfileCache, getUserPosts } from '@/services/posts.service'
@@ -42,6 +43,7 @@ export function ProfilePage() {
   const [friends, setFriends] = useState<UserProfile[]>([])
   const [activeTab, setActiveTab] = useState<'all' | 'photos'>('all')
   const [selectedPhotoIndex, setSelectedPhotoIndex] = useState<number | null>(null)
+  const [showAvatarViewer, setShowAvatarViewer] = useState(false)
   const [editing, setEditing] = useState(false)
   const [loading, setLoading] = useState(false)
   const [postsLoading, setPostsLoading] = useState(true)
@@ -148,13 +150,35 @@ export function ProfilePage() {
     <AppLayout>
       <Card className="p-6 mb-6">
         <div className="flex flex-col sm:flex-row items-center gap-6">
-          {/* Avatar preview */}
-          <div className="relative">
+          {/* Avatar preview & click to view full size */}
+          <div
+            onClick={() => {
+              if (!editing && (viewProfile.photoURL || photoPreview)) {
+                setShowAvatarViewer(true)
+              }
+            }}
+            className={cn(
+              'relative group',
+              !editing && (viewProfile.photoURL || photoPreview) && 'cursor-pointer'
+            )}
+            title={!editing && (viewProfile.photoURL || photoPreview) ? 'คลิกเพื่อดูรูปโปรไฟล์ขนาดเต็ม' : undefined}
+          >
             <Avatar
               src={editing ? photoPreview : viewProfile.photoURL}
               name={viewProfile.displayName}
               size="xl"
+              className={cn(
+                'transition-transform',
+                !editing && (viewProfile.photoURL || photoPreview) && 'group-hover:scale-105 group-hover:ring-4 group-hover:ring-zinc-900/10'
+              )}
             />
+            {!editing && (viewProfile.photoURL || photoPreview) && (
+              <div className="absolute inset-0 rounded-full bg-black/0 group-hover:bg-black/20 flex items-center justify-center transition-all opacity-0 group-hover:opacity-100">
+                <span className="text-white text-xs font-medium bg-black/60 px-2 py-0.5 rounded-full backdrop-blur-sm">
+                  ดูรูป
+                </span>
+              </div>
+            )}
           </div>
 
           <div className="flex-1 text-center sm:text-left w-full">
@@ -413,6 +437,16 @@ export function ProfilePage() {
           open={selectedPhotoIndex !== null}
           onClose={() => setSelectedPhotoIndex(null)}
           onIndexChange={(idx) => setSelectedPhotoIndex(idx)}
+        />
+      )}
+
+      {/* Avatar Image Preview Modal */}
+      {showAvatarViewer && (viewProfile.photoURL || photoPreview) && (
+        <ImageViewerModal
+          images={[photoPreview || viewProfile.photoURL]}
+          currentIndex={0}
+          open={showAvatarViewer}
+          onClose={() => setShowAvatarViewer(false)}
         />
       )}
     </AppLayout>
