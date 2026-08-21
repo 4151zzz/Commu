@@ -15,6 +15,7 @@ export async function registerServiceWorker(): Promise<ServiceWorkerRegistration
     const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js', {
       scope: '/',
     })
+    console.log('[Push] Service Worker registered successfully:', registration.scope)
     return registration
   } catch (err) {
     console.warn('[Push] Service Worker registration failed:', err)
@@ -23,20 +24,31 @@ export async function registerServiceWorker(): Promise<ServiceWorkerRegistration
 }
 
 /**
- * Request notification permission from the user
+ * Request notification permission from the user (Universal iOS & Android support)
  */
 export async function requestNotificationPermission(userId: string): Promise<boolean> {
-  if (typeof window === 'undefined' || !('Notification' in window)) {
-    console.warn('[Push] Notifications are not supported in this browser.')
+  if (typeof window === 'undefined') return false
+
+  // Check if Notification API exists
+  if (!('Notification' in window)) {
+    alert('อุปกรณ์หรือเบราว์เซอร์นี้ยังไม่รองรับ Web Notification โดยตรง')
     return false
   }
 
   try {
-    const permission = await Notification.requestPermission()
-    if (permission === 'granted') {
-      await registerServiceWorker()
+    await registerServiceWorker()
 
-      // Update user profile indicating notifications are enabled
+    // Handle both Promise-based and Callback-based requestPermission (for iOS Safari & old browsers)
+    let permission: NotificationPermission
+    try {
+      permission = await Notification.requestPermission()
+    } catch {
+      permission = await new Promise<NotificationPermission>((resolve) => {
+        Notification.requestPermission((p) => resolve(p))
+      })
+    }
+
+    if (permission === 'granted') {
       try {
         await updateDoc(doc(db, 'users', userId), {
           notificationsEnabled: true,
@@ -45,9 +57,11 @@ export async function requestNotificationPermission(userId: string): Promise<boo
       } catch (e) {
         console.warn('[Push] Failed to update user profile with notification status:', e)
       }
-
       return true
+    } else if (permission === 'denied') {
+      alert('การแจ้งเตือนถูกปิดกั้นอยู่ กรุณาไปที่ การตั้งค่าของเบราว์เซอร์ > การอนุญาตเว็บไซต์ > อนุญาตการแจ้งเตือน')
     }
+
     return false
   } catch (err) {
     console.error('[Push] Error requesting notification permission:', err)
