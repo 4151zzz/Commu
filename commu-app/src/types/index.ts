@@ -61,6 +61,8 @@ export interface Comment {
   text: string
   createdAt: Date | null
   author?: UserProfile
+  replyToId?: string
+  replyToAuthorName?: string
 }
 
 export interface AppNotification {

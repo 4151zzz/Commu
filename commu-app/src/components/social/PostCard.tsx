@@ -1,24 +1,39 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Heart, MessageCircle, Share2, Repeat2, Send, Trash2, UserPlus, Check } from 'lucide-react'
+import {
+  Heart,
+  MessageCircle,
+  Share2,
+  Repeat2,
+  Send,
+  Trash2,
+  UserPlus,
+  Check,
+  Reply,
+  Smile,
+  X,
+} from 'lucide-react'
 import { Card } from '@/components/ui/Card'
 import { Avatar } from '@/components/ui/Avatar'
 import { Button } from '@/components/ui/Button'
 import { Modal } from '@/components/ui/Modal'
 import { ImageViewerModal } from '@/components/ui/ImageViewerModal'
 import { formatTimeAgo, cn } from '@/lib/utils'
-import type { Post } from '@/types'
+import type { Post, Comment as CommentType } from '@/types'
 import { useAuth } from '@/contexts/AuthContext'
 import {
   toggleLike,
   sharePost,
   repostPost,
   addComment,
+  deleteComment,
   deletePost,
   subscribeToComments,
   getOriginalPost,
 } from '@/services/posts.service'
 import { getFriendshipStatus, sendFriendRequest } from '@/services/friends.service'
+
+const POPULAR_EMOJIS = ['❤️', '😂', '🔥', '👍', '😍', '🥺', '👏', '🥳', '🎉', '💯', '✨', '🙏', '🤣', '😭', '🚀', '😎']
 
 interface PostCardProps {
   post: Post
@@ -40,12 +55,18 @@ export function PostCard({ post, onUpdate, onDeleted }: PostCardProps) {
   const [selectedImageIndex, setSelectedImageIndex] = useState<number | null>(null)
   const [repostCaption, setRepostCaption] = useState('')
   const [comment, setComment] = useState('')
-  const [comments, setComments] = useState<import('@/types').Comment[]>([])
+  const [comments, setComments] = useState<CommentType[]>([])
   const [originalPost, setOriginalPost] = useState<Post | null>(null)
   const [loading, setLoading] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [friendshipStatus, setFriendshipStatus] = useState<'none' | 'pending_sent' | 'pending_received' | 'friends'>('friends')
   const [sendingRequest, setSendingRequest] = useState(false)
+
+  // Reply state
+  const [replyingTo, setReplyingTo] = useState<{ id: string; authorName: string } | null>(null)
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false)
+  const [deletingCommentId, setDeletingCommentId] = useState<string | null>(null)
+  const commentInputRef = useRef<HTMLInputElement>(null)
 
   // Sync liked state when feed refreshes (e.g. after re-subscribe)
   useEffect(() => {
@@ -88,26 +109,21 @@ export function PostCard({ post, onUpdate, onDeleted }: PostCardProps) {
   }
 
   const handleLike = async () => {
-    // Guard: prevent multiple in-flight requests (1 account = 1 like)
     if (!user || isLiking) return
     setIsLiking(true)
-    // Optimistic UI update
     const optimisticLiked = !liked
     setLiked(optimisticLiked)
     setLikeCount((c) => (optimisticLiked ? c + 1 : c - 1))
     try {
       const serverLiked = await toggleLike(post.id, user.uid)
-      // Reconcile with server result
       setLiked(serverLiked)
       setLikeCount((c) => {
-        // Adjust if server result differs from optimistic
         if (serverLiked !== optimisticLiked) {
           return serverLiked ? c + 1 : c - 1
         }
         return c
       })
     } catch {
-      // Revert optimistic update on error
       setLiked(liked)
       setLikeCount((c) => (optimisticLiked ? c - 1 : c + 1))
     } finally {
@@ -140,8 +156,45 @@ export function PostCard({ post, onUpdate, onDeleted }: PostCardProps) {
 
   const handleComment = async () => {
     if (!user || !comment.trim()) return
-    await addComment(post.id, user.uid, comment.trim())
+    const textToSend = comment.trim()
+    const currentReply = replyingTo
     setComment('')
+    setReplyingTo(null)
+    setShowEmojiPicker(false)
+
+    await addComment(
+      post.id,
+      user.uid,
+      textToSend,
+      currentReply?.id,
+      currentReply?.authorName
+    )
+  }
+
+  const handleStartReply = (c: CommentType) => {
+    setReplyingTo({
+      id: c.id,
+      authorName: c.author?.displayName || 'User',
+    })
+    setTimeout(() => {
+      commentInputRef.current?.focus()
+    }, 100)
+  }
+
+  const handleDeleteComment = async (commentId: string) => {
+    setDeletingCommentId(commentId)
+    try {
+      await deleteComment(post.id, commentId)
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setDeletingCommentId(null)
+    }
+  }
+
+  const handleInsertEmoji = (emoji: string) => {
+    setComment((prev) => prev + emoji)
+    commentInputRef.current?.focus()
   }
 
   const handleDelete = async () => {
@@ -326,46 +379,145 @@ export function PostCard({ post, onUpdate, onDeleted }: PostCardProps) {
       )}
 
       {/* Comments modal */}
-      <Modal open={showComments} onClose={() => setShowComments(false)} title="ความคิดเห็น">
-        <div className="space-y-4 max-h-80 overflow-y-auto">
+      <Modal open={showComments} onClose={() => setShowComments(false)} title={`ความคิดเห็น (${comments.length})`}>
+        <div className="space-y-3.5 max-h-80 overflow-y-auto pr-1">
           {comments.length === 0 && (
-            <p className="text-zinc-400 text-center py-4">ยังไม่มีความคิดเห็น</p>
+            <div className="text-center py-8">
+              <p className="text-zinc-400 text-sm">ยังไม่มีความคิดเห็น</p>
+              <p className="text-zinc-300 text-xs mt-1">เป็นคนแรกที่แสดงความคิดเห็น!</p>
+            </div>
           )}
-          {comments.map((c) => (
-            <div key={c.id} className="flex gap-3">
-              <div
-                onClick={() => {
-                  setShowComments(false)
-                  goToProfile(c.authorId)
-                }}
-                className="cursor-pointer"
-              >
-                <Avatar name={c.author?.displayName || 'U'} src={c.author?.photoURL} size="sm" />
-              </div>
-              <div>
-                <p
+          {comments.map((c) => {
+            const canDelete = user?.uid === c.authorId || isOwner
+            const isDeleting = deletingCommentId === c.id
+
+            return (
+              <div key={c.id} className="flex gap-3 group">
+                <div
                   onClick={() => {
                     setShowComments(false)
                     goToProfile(c.authorId)
                   }}
-                  className="text-sm font-medium text-zinc-900 cursor-pointer hover:underline"
+                  className="cursor-pointer flex-shrink-0"
                 >
-                  {c.author?.displayName}
-                </p>
-                <p className="text-sm text-zinc-600">{c.text}</p>
+                  <Avatar name={c.author?.displayName || 'U'} src={c.author?.photoURL} size="sm" />
+                </div>
+                <div className="flex-1 min-w-0 bg-zinc-50 rounded-2xl p-3 border border-zinc-100/80">
+                  <div className="flex items-center justify-between gap-2 mb-1">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <p
+                        onClick={() => {
+                          setShowComments(false)
+                          goToProfile(c.authorId)
+                        }}
+                        className="text-xs font-semibold text-zinc-900 cursor-pointer hover:underline truncate"
+                      >
+                        {c.author?.displayName}
+                      </p>
+                      {c.createdAt && (
+                        <span className="text-[10px] text-zinc-400 flex-shrink-0">
+                          {formatTimeAgo(c.createdAt)}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Delete button (for comment author or post owner) */}
+                    {canDelete && (
+                      <button
+                        onClick={() => handleDeleteComment(c.id)}
+                        disabled={isDeleting}
+                        className="opacity-0 group-hover:opacity-100 p-1 text-zinc-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
+                        title="ลบความคิดเห็น"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Reply badge if replying to another user */}
+                  {c.replyToAuthorName && (
+                    <div className="flex items-center gap-1 text-[11px] text-zinc-500 bg-zinc-200/60 px-2 py-0.5 rounded-md mb-1.5 w-fit">
+                      <Reply className="w-3 h-3 text-zinc-400 rotate-180" />
+                      <span>ตอบกลับ <b>@{c.replyToAuthorName}</b></span>
+                    </div>
+                  )}
+
+                  <p className="text-sm text-zinc-700 whitespace-pre-wrap break-words leading-relaxed">
+                    {c.text}
+                  </p>
+
+                  {/* Reply button */}
+                  <div className="flex items-center gap-3 mt-2 pt-1 border-t border-zinc-100">
+                    <button
+                      onClick={() => handleStartReply(c)}
+                      className="text-[11px] font-medium text-zinc-500 hover:text-zinc-900 flex items-center gap-1 transition-colors"
+                    >
+                      <Reply className="w-3 h-3" />
+                      ตอบกลับ
+                    </button>
+                  </div>
+                </div>
               </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
-        <div className="flex gap-2 mt-4">
+
+        {/* Reply Indicator Bar */}
+        {replyingTo && (
+          <div className="flex items-center justify-between px-3 py-1.5 mt-3 bg-zinc-100 border border-zinc-200 rounded-xl text-xs text-zinc-700 animate-in fade-in duration-150">
+            <span className="flex items-center gap-1.5 truncate">
+              <Reply className="w-3.5 h-3.5 text-zinc-500 rotate-180" />
+              กำลังตอบกลับ <b className="text-zinc-900">@{replyingTo.authorName}</b>
+            </span>
+            <button
+              onClick={() => setReplyingTo(null)}
+              className="p-1 text-zinc-400 hover:text-zinc-700 hover:bg-zinc-200 rounded-lg transition-colors"
+              title="ยกเลิกตอบกลับ"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        )}
+
+        {/* Quick Emoji Bar (Popup / Expandable) */}
+        {showEmojiPicker && (
+          <div className="p-2 mt-2 bg-zinc-50 border border-zinc-200 rounded-2xl grid grid-cols-8 gap-1.5 animate-in fade-in slide-in-from-bottom-2 duration-150">
+            {POPULAR_EMOJIS.map((emoji) => (
+              <button
+                key={emoji}
+                type="button"
+                onClick={() => handleInsertEmoji(emoji)}
+                className="w-8 h-8 flex items-center justify-center text-lg hover:scale-125 hover:bg-white rounded-lg transition-all"
+              >
+                {emoji}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Comment Input Box */}
+        <div className="flex items-center gap-2 mt-3 pt-2 border-t border-zinc-100">
+          <button
+            type="button"
+            onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+            className={cn(
+              'p-2 rounded-xl transition-all',
+              showEmojiPicker ? 'bg-zinc-900 text-white' : 'text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100'
+            )}
+            title="ใส่อิโมจิ"
+          >
+            <Smile className="w-5 h-5" />
+          </button>
+
           <input
+            ref={commentInputRef}
             value={comment}
             onChange={(e) => setComment(e.target.value)}
-            placeholder="เขียนความคิดเห็น..."
+            placeholder={replyingTo ? `ตอบกลับ @${replyingTo.authorName}...` : 'เขียนความคิดเห็น...'}
             className="flex-1 px-4 py-2 rounded-xl bg-zinc-100 border border-zinc-200 text-zinc-900 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900/20"
             onKeyDown={(e) => e.key === 'Enter' && handleComment()}
           />
-          <Button size="icon" onClick={handleComment}>
+          <Button size="icon" onClick={handleComment} disabled={!comment.trim()}>
             <Send className="w-4 h-4" />
           </Button>
         </div>

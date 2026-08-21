@@ -4,21 +4,20 @@ import {
   addDoc,
   getDoc,
   getDocs,
+  updateDoc,
   deleteDoc,
-  setDoc,
   query,
-  where,
   orderBy,
   serverTimestamp,
-  onSnapshot,
   increment,
-  updateDoc,
+  onSnapshot,
   limit,
 } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import type { Post, Comment, UserProfile } from '@/types'
 import { getUserProfile } from './auth.service'
 import { createNotification } from './notifications.service'
+import { uploadMultipleImages, deleteImagesFromStorage } from './storage.service'
 
 // ---------- User profile cache (avoids repeated Firestore reads) ----------
 const profileCache = new Map<string, UserProfile>()
@@ -52,8 +51,6 @@ function mapPost(id: string, data: Record<string, unknown>): Post {
     repostCaption: data.repostCaption as string | undefined,
   }
 }
-
-import { uploadMultipleImages, deleteImagesFromStorage } from './storage.service'
 
 // ---------- Create / Delete ----------
 
@@ -110,9 +107,13 @@ export async function toggleLike(postId: string, userId: string): Promise<boolea
     return false
   }
 
-  await setDoc(likeRef, { createdAt: serverTimestamp() })
+  await addDoc(collection(db, 'posts', postId, 'likes'), {
+    userId,
+    createdAt: serverTimestamp(),
+  })
   await updateDoc(postRef, { likeCount: increment(1) })
 
+  // Send notification to post author (skip if liking own post)
   const postSnap = await getDoc(postRef)
   const authorId = postSnap.data()?.authorId as string
   if (authorId && authorId !== userId) {
@@ -125,14 +126,14 @@ export async function toggleLike(postId: string, userId: string): Promise<boolea
       message: `${user?.displayName || 'Someone'} ถูกใจโพสต์ของคุณ`,
     })
   }
+
   return true
 }
 
 export async function sharePost(postId: string, userId: string): Promise<void> {
-  const postRef = doc(db, 'posts', postId)
-  await updateDoc(postRef, { shareCount: increment(1) })
+  await updateDoc(doc(db, 'posts', postId), { shareCount: increment(1) })
 
-  const postSnap = await getDoc(postRef)
+  const postSnap = await getDoc(doc(db, 'posts', postId))
   const authorId = postSnap.data()?.authorId as string
   if (authorId && authorId !== userId) {
     const user = await getCachedProfile(userId)
@@ -149,15 +150,12 @@ export async function sharePost(postId: string, userId: string): Promise<void> {
 export async function repostPost(
   originalPostId: string,
   userId: string,
-  caption: string = ''
+  caption?: string
 ): Promise<string> {
-  const originalSnap = await getDoc(doc(db, 'posts', originalPostId))
-  if (!originalSnap.exists()) throw new Error('Post not found')
-
-  const original = originalSnap.data()
   const docRef = await addDoc(collection(db, 'posts'), {
     authorId: userId,
-    content: caption,
+    originalPostId,
+    content: '',
     images: [],
     likeCount: 0,
     shareCount: 0,
@@ -165,14 +163,14 @@ export async function repostPost(
     commentCount: 0,
     createdAt: serverTimestamp(),
     isRepost: true,
-    originalPostId,
-    repostCaption: caption,
+    repostCaption: caption || '',
   })
 
   await updateDoc(doc(db, 'posts', originalPostId), { repostCount: increment(1) })
 
-  const authorId = original.authorId as string
-  if (authorId !== userId) {
+  const postSnap = await getDoc(doc(db, 'posts', originalPostId))
+  const authorId = postSnap.data()?.authorId as string
+  if (authorId && authorId !== userId) {
     const user = await getCachedProfile(userId)
     await createNotification({
       recipientId: authorId,
@@ -190,13 +188,20 @@ export async function repostPost(
 export async function addComment(
   postId: string,
   authorId: string,
-  text: string
+  text: string,
+  replyToId?: string,
+  replyToAuthorName?: string
 ): Promise<void> {
-  await addDoc(collection(db, 'posts', postId, 'comments'), {
+  const commentData: Record<string, unknown> = {
     authorId,
     text,
     createdAt: serverTimestamp(),
-  })
+  }
+
+  if (replyToId) commentData.replyToId = replyToId
+  if (replyToAuthorName) commentData.replyToAuthorName = replyToAuthorName
+
+  await addDoc(collection(db, 'posts', postId, 'comments'), commentData)
   await updateDoc(doc(db, 'posts', postId), { commentCount: increment(1) })
 
   const postSnap = await getDoc(doc(db, 'posts', postId))
@@ -208,9 +213,16 @@ export async function addComment(
       type: 'comment',
       fromUserId: authorId,
       referenceId: postId,
-      message: `${user?.displayName || 'Someone'} แสดงความคิดเห็นในโพสต์ของคุณ`,
+      message: replyToAuthorName
+        ? `${user?.displayName || 'Someone'} ตอบกลับความคิดเห็นในโพสต์ของคุณ`
+        : `${user?.displayName || 'Someone'} แสดงความคิดเห็นในโพสต์ของคุณ`,
     })
   }
+}
+
+export async function deleteComment(postId: string, commentId: string): Promise<void> {
+  await deleteDoc(doc(db, 'posts', postId, 'comments', commentId))
+  await updateDoc(doc(db, 'posts', postId), { commentCount: increment(-1) })
 }
 
 // ---------- Real-time subscriptions ----------
@@ -264,6 +276,8 @@ export function subscribeToComments(
           id: d.id,
           authorId: data.authorId as string,
           text: data.text as string,
+          replyToId: data.replyToId as string | undefined,
+          replyToAuthorName: data.replyToAuthorName as string | undefined,
           createdAt: data.createdAt
             ? (data.createdAt as { toDate: () => Date }).toDate()
             : null,
@@ -286,16 +300,18 @@ export async function getOriginalPost(postId: string): Promise<Post | null> {
 export async function getUserPosts(userId: string): Promise<Post[]> {
   const q = query(
     collection(db, 'posts'),
-    where('authorId', '==', userId),
     orderBy('createdAt', 'desc'),
-    limit(20)
+    limit(50)
   )
   const snap = await getDocs(q)
-  return Promise.all(
-    snap.docs.map(async (d) => {
-      const post = mapPost(d.id, d.data())
-      const author = await getCachedProfile(post.authorId)
-      return { ...post, author: author || undefined }
-    })
-  )
+  const userDocs = snap.docs.filter((d) => d.data().authorId === userId)
+  const author = await getCachedProfile(userId)
+
+  return userDocs.map((d) => {
+    const post = mapPost(d.id, d.data())
+    return {
+      ...post,
+      author: author || undefined,
+    }
+  })
 }
