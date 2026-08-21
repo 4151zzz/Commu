@@ -51,6 +51,17 @@ function getServerBaseUrl(req) {
   return `${protocol}://${host}`
 }
 
+// Helper to extract filename safely from full URL or filename string
+function sanitizeFilename(urlOrName) {
+  if (!urlOrName || typeof urlOrName !== 'string') return null
+  const filename = path.basename(urlOrName.split('?')[0])
+  // Ensure it doesn't contain directory traversal
+  if (filename.includes('..') || filename.includes('/') || filename.includes('\\')) {
+    return null
+  }
+  return filename
+}
+
 // Health check endpoint
 app.get('/health', (req, res) => {
   res.json({
@@ -128,6 +139,40 @@ app.post('/api/upload-multiple', upload.array('images', 10), async (req, res) =>
   } catch (err) {
     console.error('[Multiple Upload Error]', err)
     res.status(500).json({ error: err.message || 'เกิดข้อผิดพลาดในการอัปโหลดรูปภาพ' })
+  }
+})
+
+// Delete images from hard disk endpoint
+app.post('/api/delete', async (req, res) => {
+  try {
+    const { urls, url } = req.body
+    const targetUrls = Array.isArray(urls) ? urls : (url ? [url] : [])
+
+    if (targetUrls.length === 0) {
+      return res.status(400).json({ error: 'กรุณาระบุ URL ของรูปภาพที่ต้องการลบ' })
+    }
+
+    let deletedCount = 0
+
+    for (const itemUrl of targetUrls) {
+      const filename = sanitizeFilename(itemUrl)
+      if (!filename) continue
+
+      const filepath = path.join(UPLOAD_DIR, filename)
+      if (fs.existsSync(filepath)) {
+        await fs.promises.unlink(filepath)
+        deletedCount++
+        console.log(`[Delete] Removed file from disk: ${filename}`)
+      }
+    }
+
+    res.json({
+      success: true,
+      deletedCount,
+    })
+  } catch (err) {
+    console.error('[Delete Error]', err)
+    res.status(500).json({ error: err.message || 'เกิดข้อผิดพลาดในการลบรูปภาพ' })
   }
 })
 

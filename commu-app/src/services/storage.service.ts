@@ -67,3 +67,27 @@ export async function uploadMultipleImages(files: File[]): Promise<string[]> {
   // Fallback to sequential compressed base64
   return Promise.all(files.map((file) => compressImage(file, 600, 0.4)))
 }
+
+/**
+ * Delete images from self-hosted server hard disk when post is deleted
+ */
+export async function deleteImagesFromStorage(imageUrls: string[]): Promise<void> {
+  if (!imageUrls || imageUrls.length === 0 || !STORAGE_SERVER_URL) return
+
+  try {
+    // Only send deletion requests for URLs that belong to our storage server
+    const serverImages = imageUrls.filter((url) => url.startsWith('http'))
+    if (serverImages.length === 0) return
+
+    const endpoint = `${STORAGE_SERVER_URL.replace(/\/$/, '')}/api/delete`
+    await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ urls: serverImages }),
+    })
+  } catch (err) {
+    console.warn('[StorageService] Failed to delete images from server:', err)
+  }
+}

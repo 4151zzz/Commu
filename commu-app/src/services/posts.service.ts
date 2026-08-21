@@ -53,7 +53,7 @@ function mapPost(id: string, data: Record<string, unknown>): Post {
   }
 }
 
-import { uploadMultipleImages } from './storage.service'
+import { uploadMultipleImages, deleteImagesFromStorage } from './storage.service'
 
 // ---------- Create / Delete ----------
 
@@ -82,6 +82,18 @@ export async function createPost(
 }
 
 export async function deletePost(postId: string): Promise<void> {
+  try {
+    const postSnap = await getDoc(doc(db, 'posts', postId))
+    if (postSnap.exists()) {
+      const data = postSnap.data()
+      if (data.images && Array.isArray(data.images) && data.images.length > 0) {
+        await deleteImagesFromStorage(data.images)
+      }
+    }
+  } catch (err) {
+    console.warn('[DeletePost] Failed to clean up images from storage server:', err)
+  }
+
   await deleteDoc(doc(db, 'posts', postId))
 }
 
